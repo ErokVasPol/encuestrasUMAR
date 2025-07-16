@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Respuestas de Encuesta - UMAR</title>
+  <script src="js/tailwind.js"></script>
+  <script src="js/xlxs.min.js"></script>
+</head>
+<body class="bg-gray-100 p-4">
+  <div class="max-w-7xl mx-auto bg-white rounded shadow p-6">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl font-bold">Respuestas Recibidas - Encuesta UMAR</h1>
+      <button id="exportarExcel" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+        Exportar a Excel
+      </button>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="min-w-full bg-white border" id="tablaRespuestas">
+        <thead class="bg-gray-200" id="tablaHead"></thead>
+        <tbody id="respuestasBody">
+          <tr><td colspan="100" class="text-center p-4 text-gray-500">Cargando respuestas...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let respuestasGlobal = [];
+
+    fetch('/api/respuestas')
+      .then(res => res.json())
+      .then(data => {
+        const tbody = document.getElementById('respuestasBody');
+        const thead = document.getElementById('tablaHead');
+        tbody.innerHTML = '';
+
+        if (!data.length) {
+          tbody.innerHTML = '<tr><td colspan="100" class="text-center p-4 text-gray-500">No hay respuestas aún.</td></tr>';
+          return;
+        }
+
+        // Obtener todas las claves únicas de los objetos de datos
+        const allKeys = new Set();
+        data.forEach(entry => {
+          Object.keys(entry.datos).forEach(k => allKeys.add(k));
+        });
+
+        const keys = Array.from(allKeys).sort();
+        const trHead = document.createElement('tr');
+        trHead.innerHTML = `<th class="border px-2 py-1">#</th>` + keys.map(k => `<th class="border px-2 py-1">${k}</th>`).join('');
+        thead.appendChild(trHead);
+
+        data.forEach((entry, i) => {
+          const row = document.createElement('tr');
+          row.innerHTML = `<td class="border px-2 py-1">${i + 1}</td>` +
+            keys.map(k => {
+              let val = entry.datos[k];
+              if (Array.isArray(val)) val = val.join(', ');
+              return `<td class="border px-2 py-1">${val || ''}</td>`;
+            }).join('');
+          tbody.appendChild(row);
+        });
+
+        respuestasGlobal = data;
+        respuestasGlobalKeys = keys;
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById('respuestasBody').innerHTML =
+          '<tr><td colspan="100" class="text-center p-4 text-red-500">Error al cargar respuestas.</td></tr>';
+      });
+
+    document.getElementById('exportarExcel').addEventListener('click', () => {
+      if (!respuestasGlobal.length) return;
+
+      const keys = respuestasGlobalKeys;
+      const ws_data = [
+        ["#", ...keys]
+      ];
+
+      respuestasGlobal.forEach((entry, i) => {
+        const row = [i + 1];
+        keys.forEach(k => {
+          let val = entry.datos[k];
+          if (Array.isArray(val)) val = val.join(', ');
+          row.push(val || '');
+        });
+        ws_data.push(row);
+      });
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(ws_data);
+      XLSX.utils.book_append_sheet(wb, ws, "Respuestas");
+      XLSX.writeFile(wb, "respuestas_encuesta.xlsx");
+    });
+  </script>
+</body>
+</html>

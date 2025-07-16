@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Encuesta</title>
+  <script src="js/tailwind.js"></script>
+  <script src="js/xlxs.min.js"></script>
+
+</head>
+<body class="bg-gray-100 p-6">
+  <div class="max-w-4xl mx-auto bg-white shadow-lg rounded-xl p-6">
+    <!-- Encabezado -->
+    <div class="flex flex-col sm:flex-row items-center justify-between mb-6">
+      <img src="img/logo_umar.png" alt="Logo UMAR" class="w-24 h-auto mb-4 sm:mb-0">
+      <div class="text-center sm:text-right">
+        <h1 class="text-3xl font-bold text-gray-800">Universidad del Mar</h1>
+        <p class="text-sm italic text-gray-600">Puerto Escondido ~ Puerto Ángel ~ Huatulco</p>
+        <p class="tracking-widest font-semibold text-gray-700">O&nbsp;&nbsp;A&nbsp;&nbsp;X&nbsp;&nbsp;A&nbsp;&nbsp;C&nbsp;&nbsp;A</p>
+      </div>
+    </div>
+
+    <!-- Descripción -->
+    <div class="text-sm text-justify text-gray-700 mb-4">
+      <p><strong>Encuesta dirigida a estudiantes de nivel medio superior</strong> para investigar intención de elección de Institución Educativa e interés real de candidatos potenciales a las carreras profesionales que oferta la UMAR.</p>
+      <p class="mt-2"><strong>Objetivo:</strong> Investigar intención de elección de Institución Educativa e interés en oferta de carreras profesionales, a fin de contar con elementos que permitan planear la apertura y mejora de nuestra oferta educativa y estar a la vanguardia de tus expectativas. ¡¡¡Participa; tus respuestas son muy valiosas!!!</p>
+      <p class="mt-2"><strong>Instrucciones:</strong> Contesta las preguntas siguientes seleccionando la opción que mejor refleje tus intenciones: subrayándola, encerrándola en un círculo o marcándola con una 'X'.<br>La encuesta es anónima y la información que nos proporciones tendrá un manejo confidencial y se utilizará estrictamente para efectos de planeación institucional; por lo que te solicitamos la respondas con la mayor certidumbre posible.</p>
+      <p class="mt-4 font-semibold text-center">Agradecemos de antemano tu colaboración y apoyo.</p>
+    </div>
+
+    <!-- Formulario -->
+    <form id="encuesta-form" class="space-y-6">
+      <fieldset class="border border-gray-300 p-4 rounded mb-4">
+        <legend class="text-lg font-semibold mb-2">Datos generales</legend>
+        <div class="flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-2">
+          <label>Sexo:</label>
+          <label><input type="radio" name="Sexo" value="H" required> H</label>
+          <label><input type="radio" name="Sexo" value="M" required> M</label>
+        </div>
+        <div class="mb-2">
+          <label>Edad:</label>
+          <input type="number" name="Edad" class="border rounded w-full p-2" required>
+        </div>
+        <div class="mb-2">
+          <label>Área de Especialidad:</label>
+          <input type="text" name="Área de Especialidad" class="border rounded w-full p-2" required>
+        </div>
+        <div>
+          <label>Semestre:</label>
+          <input type="text" name="Semestre" class="border rounded w-full p-2" required>
+        </div>
+      </fieldset>
+    </form>
+
+    <div class="text-center mt-6">
+      <button id="submit-btn" type="submit" form="encuesta-form"
+        class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+        Enviar
+      </button>
+    </div>
+  </div>
+
+  <!-- Notificación visual -->
+  <div id="notificacion" class="fixed bottom-4 right-4 hidden bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50"></div>
+
+  <script>
+    fetch('/preguntas_encuesta_umar.xlsx')
+      .then(res => res.arrayBuffer())
+      .then(buffer => {
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const preguntas = XLSX.utils.sheet_to_json(sheet);
+        const form = document.getElementById('encuesta-form');
+
+        preguntas.forEach((p, i) => {
+          const div = document.createElement('div');
+          div.className = 'mb-4';
+
+          const label = document.createElement('label');
+          label.className = 'block font-semibold mb-1';
+          label.textContent = `${i + 1}. ${p.pregunta}`;
+          div.appendChild(label);
+
+          const name = p.pregunta;
+
+          if (p.tipo === 'radio') {
+            const opciones = (p.opciones || '').split(',');
+            opciones.forEach(op => {
+              const input = document.createElement('input');
+              input.type = 'radio';
+              input.name = name;
+              input.value = op.trim();
+              input.required = true;
+              input.className = 'mr-1';
+              const span = document.createElement('span');
+              span.textContent = op.trim();
+              const option = document.createElement('label');
+              option.className = 'block';
+              option.appendChild(input);
+              option.appendChild(span);
+              div.appendChild(option);
+            });
+          } else if (p.tipo === 'checkbox') {
+            const opciones = (p.opciones || '').split(',');
+            opciones.forEach(op => {
+              const input = document.createElement('input');
+              input.type = 'checkbox';
+              input.name = `${name}[]`;
+              input.value = op.trim();
+              input.className = 'mr-1';
+              const span = document.createElement('span');
+              span.textContent = op.trim();
+              const option = document.createElement('label');
+              option.className = 'block';
+              option.appendChild(input);
+              option.appendChild(span);
+              div.appendChild(option);
+            });
+            div.setAttribute('data-required-checkbox', name);
+          } else if (p.tipo === 'textarea') {
+            const textarea = document.createElement('textarea');
+            textarea.name = name;
+            textarea.rows = 3;
+            textarea.required = true;
+            textarea.className = 'w-full p-2 border rounded';
+            div.appendChild(textarea);
+          } else if (p.tipo === 'text-list') {
+            for (let j = 0; j < 3; j++) {
+              const input = document.createElement('input');
+              input.type = 'text';
+              input.name = `${name} ${j + 1}`;
+              input.placeholder = `${j + 1}.`;
+              input.required = true;
+              input.className = 'w-full p-2 border rounded mb-1';
+              div.appendChild(input);
+            }
+          } else {
+            const input = document.createElement('input');
+            input.type = p.tipo === 'email' ? 'email' : 'text';
+            input.name = name;
+            input.required = true;
+            input.className = 'w-full p-2 border rounded';
+            div.appendChild(input);
+          }
+
+          form.appendChild(div);
+        });
+
+        document.getElementById('encuesta-form').addEventListener('submit', function (e) {
+          e.preventDefault();
+
+          const secciones = form.querySelectorAll('[data-required-checkbox]');
+          for (const sec of secciones) {
+            const nombre = sec.getAttribute('data-required-checkbox');
+            const marcados = form.querySelectorAll(`input[name="${nombre}[]"]:checked`);
+            if (!marcados.length) {
+              alert(`Por favor selecciona al menos una opción en: "${nombre}".`);
+              return;
+            }
+          }
+
+          const formData = new FormData(form);
+          const datos = {};
+          for (const [key, value] of formData.entries()) {
+            if (key.endsWith('[]')) {
+              const cleanKey = key.replace('[]', '');
+              datos[cleanKey] = datos[cleanKey] || [];
+              datos[cleanKey].push(value);
+            } else {
+              if (datos[key]) {
+                if (!Array.isArray(datos[key])) datos[key] = [datos[key]];
+                datos[key].push(value);
+              } else {
+                datos[key] = value;
+              }
+            }
+          }
+
+          fetch('/encuesta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(datos)
+          })
+          .then(res => res.json())
+          .then(data => {
+            mostrarNotificacion(data.mensaje || '¡Gracias por participar!');
+            form.reset();
+          })
+          .catch(err => {
+            console.error(err);
+            mostrarNotificacion('Error al enviar la encuesta', true);
+          });
+        });
+
+        function mostrarNotificacion(mensaje, esError = false) {
+          const notif = document.getElementById('notificacion');
+          notif.textContent = mensaje;
+          notif.className = `fixed bottom-4 right-4 px-4 py-2 rounded shadow-lg z-50 ${esError ? 'bg-red-600' : 'bg-green-600'} text-white`;
+          notif.style.display = 'block';
+          setTimeout(() => {
+            notif.style.display = 'none';
+          }, 4000);
+        }
+
+      })
+      .catch(err => {
+        console.error('Error al cargar el Excel:', err);
+        document.getElementById('encuesta-form').innerHTML = '<p class="text-red-500">No se pudo cargar el formulario.</p>';
+      });
+  </script>
+</body>
+</html>
